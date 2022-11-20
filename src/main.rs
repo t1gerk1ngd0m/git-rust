@@ -8,10 +8,9 @@ use std::io::Read;
 use std::io;
 use libflate::zlib::Decoder;
 
-// #[double]
-// use libs::file_driver::FileGateway;
-// use crate::libs::file_driver;
 mod libs;
+#[mockall_double::double]
+use libs::file_driver::file_driver;
 
 // pub enum GitObject {
 //     Blob(Blob),
@@ -67,20 +66,11 @@ pub fn cat_file_p(hash: String) -> Result<Option<Blob>, io::Error> {
     let (sub_dir, file) = hash.split_at(2);
     let path = format!("{}/.git/objects/{}/{}", env!("CARGO_MANIFEST_DIR"), sub_dir, file);
 
-    let file_content = libs::file_driver::read_file(path).unwrap();
-    println!("----file_content----");
-    println!("{:?}", file_content);
-    println!("----file_content----");
+    let file_content = file_driver::read_file(path).unwrap();
 
     let mut d = Decoder::new(&file_content[..]).unwrap();
     let mut buf = Vec::new();
     d.read_to_end(&mut buf);
-    println!("----d----");
-    println!("{:?}", d);
-    println!("----d----");
-    println!("----buf----");
-    println!("{:?}", buf);
-    println!("----buf----");
 
     Ok(Blob::from(&buf[..]))
 }
@@ -99,9 +89,9 @@ mod tests {
         io::copy(&mut &b"Hello world"[..], &mut encoder).unwrap();
         let encoded_file_content = encoder.finish().into_result().unwrap();
 
-        let mut file_driver_mock = MockFileDriver::new();
-        file_driver_mock
-            .expect_read_file()
+        let driver = file_driver::read_file_context();
+        driver
+            .expect()
             .with(eq(path))
             .times(1)
             .returning(move |_| Ok(encoded_file_content.clone()));
